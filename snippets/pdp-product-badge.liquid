@@ -1,0 +1,51 @@
+{% doc %}
+  PDP Product Badge
+
+  Renders a badge overlay on the product gallery based on product tags.
+  Checks product tags for badge eligibility with strict priority order.
+  Renders only the highest-priority matching badge (one badge max).
+
+  @param {object} product - The product object (required)
+
+  @example
+  {% render 'pdp-product-badge', product: product %}
+{% enddoc %}
+
+{%- liquid
+  assign product = product | default: empty
+  unless product != empty
+    break
+  endunless
+
+  assign badge_label = ''
+
+  if product.tags contains 'founders-edition'
+    assign badge_label = "FOUNDER'S EDITION"
+  elsif product.tags contains 'exclusive'
+    assign badge_label = 'EXCLUSIVE'
+  elsif product.tags contains 'bestseller'
+    assign badge_label = 'BESTSELLER'
+  elsif product.tags contains 'new'
+    assign badge_label = 'NEW'
+  elsif product.tags contains 'low-stock'
+    assign badge_label = 'LOW STOCK'
+  endif
+-%}
+
+{%- if badge_label != '' -%}
+  <div class="pdp-badge-wrapper">
+    <span class="pdp-badge product-badges__badge product-badges__badge--rectangle">
+      {{- badge_label -}}
+    </span>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-badge-wrapper {
+    position: absolute;
+    top: var(--padding-sm);
+    left: var(--padding-sm);
+    z-index: var(--layer-flat);
+    pointer-events: none;
+  }
+{% endstylesheet %}

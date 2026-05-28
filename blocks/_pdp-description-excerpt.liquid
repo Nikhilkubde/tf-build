@@ -1,0 +1,50 @@
+{%- liquid
+  assign product = closest.product
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+  endif
+
+  assign description = product.description
+-%}
+
+{%- if description != blank -%}
+  {%- liquid
+    assign paragraphs = description | split: '</p>'
+    assign first_paragraph = paragraphs[0] | append: '</p>'
+    # Strip any attributes from the opening <p> tag
+    assign first_paragraph = first_paragraph | replace: '<p ', '<p' | replace: '<p>', '<p>'
+  -%}
+
+  <div
+    class="pdp-description rte"
+    {{ block.shopify_attributes }}
+  >
+    {{ first_paragraph }}
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-description {
+    font-size: var(--font-paragraph--size);
+    line-height: var(--font-paragraph--line-height);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-80));
+  }
+
+  .pdp-description p {
+    margin: 0;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Description excerpt",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "Description excerpt"
+    }
+  ]
+}
+{% endschema %}

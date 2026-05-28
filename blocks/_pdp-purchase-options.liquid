@@ -1,0 +1,224 @@
+{%- liquid
+  assign product = closest.product
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+  endif
+
+  assign has_selling_plans = false
+  if product.selling_plan_groups.size > 0
+    assign has_selling_plans = true
+  endif
+-%}
+
+{%- if has_selling_plans -%}
+  {%- capture selling_plan_json -%}
+    [{%- for group in product.selling_plan_groups -%}{"name":{{ group.name | json }},"plans":[{%- for plan in group.selling_plans -%}{"id":"{{ plan.id }}","name":{{ plan.name | json }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]
+  {%- endcapture -%}
+
+  <pdp-purchase-options
+    class="pdp-purchase-options"
+    data-section-id="{{ section.id }}"
+    data-selling-plan-groups='{{ selling_plan_json | strip }}'
+    {{ block.shopify_attributes }}
+  >
+    <div class="pdp-purchase-options__card">
+      <button
+        type="button"
+        class="pdp-purchase-options__option is-active"
+        data-option-type="subscribe"
+        on:click="/handleOptionSelect/subscribe"
+        aria-label="Subscribe & Save"
+      >
+        <span class="pdp-purchase-options__radio-dot" role="radio" aria-checked="true"></span>
+        <span class="pdp-purchase-options__option-label">
+          <span class="pdp-purchase-options__option-title">Subscribe & Save</span>
+          {%- if product.selling_plan_groups.first.selling_plans.first.price_adjustments.size > 0 -%}
+            <span class="pdp-purchase-options__option-savings">Save on every order</span>
+          {%- endif -%}
+        </span>
+      </button>
+
+      <div class="pdp-purchase-options__subscribe-details is-visible">
+        {%- assign first_group = product.selling_plan_groups.first -%}
+        {%- if first_group.selling_plans.size > 1 -%}
+          <div class="pdp-purchase-options__frequency is-visible" role="radiogroup" aria-label="Delivery frequency">
+            {%- for plan in first_group.selling_plans -%}
+              <button
+                type="button"
+                class="pdp-purchase-options__pill{% if forloop.first %} is-selected{% endif %}"
+                role="radio"
+                aria-checked="{% if forloop.first %}true{% else %}false{% endif %}"
+                tabindex="{% if forloop.first %}0{% else %}-1{% endif %}"
+                data-pill-id="{{ plan.id }}"
+                on:click="/handlePillSelect/{{ plan.id }}"
+                on:keydown="/handlePillKeydown/{{ plan.id }}"
+              >
+                {{- plan.name -}}
+              </button>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      <button
+        type="button"
+        class="pdp-purchase-options__option"
+        data-option-type="onetime"
+        on:click="/handleOptionSelect/onetime"
+        aria-label="One-time purchase"
+      >
+        <span class="pdp-purchase-options__radio-dot" role="radio" aria-checked="false"></span>
+        <span class="pdp-purchase-options__option-label">
+          <span class="pdp-purchase-options__option-title">One-time purchase</span>
+        </span>
+      </button>
+    </div>
+  </pdp-purchase-options>
+
+  <script src="{{ 'pdp-purchase-options.js' | asset_url }}" type="module"></script>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-purchase-options__card {
+    border: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-15));
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+  }
+
+  .pdp-purchase-options__option {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    width: 100%;
+    padding: var(--padding-sm) var(--padding-md);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: start;
+    font: inherit;
+    color: inherit;
+    transition: background-color var(--animation-speed-fast) var(--animation-easing);
+
+    &:hover {
+      background-color: rgb(var(--color-foreground-rgb) / var(--opacity-05));
+    }
+
+    &.is-active {
+      background-color: rgb(var(--color-foreground-rgb) / var(--opacity-05));
+    }
+  }
+
+  .pdp-purchase-options__option + .pdp-purchase-options__option {
+    border-top: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-10));
+  }
+
+  .pdp-purchase-options__radio-dot {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgb(var(--color-foreground-rgb) / var(--opacity-30));
+    position: relative;
+    transition: border-color var(--animation-speed-fast) var(--animation-easing);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--color-foreground);
+      transform: scale(0);
+      transition: transform var(--animation-speed-fast) var(--animation-easing);
+    }
+
+    &[aria-checked='true'] {
+      border-color: var(--color-foreground);
+
+      &::after {
+        transform: scale(1);
+      }
+    }
+  }
+
+  .pdp-purchase-options__option-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pdp-purchase-options__option-title {
+    font-weight: 600;
+    font-size: var(--font-size--sm);
+  }
+
+  .pdp-purchase-options__option-savings {
+    font-size: var(--font-size--xs);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
+  }
+
+  .pdp-purchase-options__subscribe-details {
+    display: none;
+    border-top: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-10));
+
+    &.is-visible {
+      display: block;
+    }
+  }
+
+  .pdp-purchase-options__frequency {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--gap-2xs);
+    padding: var(--padding-xs) var(--padding-md) var(--padding-sm);
+
+    &.is-visible {
+      display: flex;
+    }
+  }
+
+  .pdp-purchase-options__pill {
+    padding: var(--padding-2xs) var(--padding-sm);
+    border: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-15));
+    border-radius: var(--radius-full, 999px);
+    background: none;
+    font: inherit;
+    font-size: var(--font-size--xs);
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color var(--animation-speed-fast) var(--animation-easing),
+      background-color var(--animation-speed-fast) var(--animation-easing);
+
+    &:hover {
+      border-color: rgb(var(--color-foreground-rgb) / var(--opacity-40));
+    }
+
+    &.is-selected {
+      border-color: var(--color-foreground);
+      background-color: var(--color-foreground);
+      color: var(--color-background);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-foreground);
+      outline-offset: 2px;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Purchase options",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "Purchase options"
+    }
+  ]
+}
+{% endschema %}

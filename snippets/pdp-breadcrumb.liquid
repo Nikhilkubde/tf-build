@@ -1,0 +1,76 @@
+{% doc %}
+  PDP Breadcrumb
+
+  Renders a breadcrumb navigation for product pages.
+
+  @param {object} product - The product object (required)
+  @param {object} [collection] - The originating collection object
+
+  @example
+  {% render 'pdp-breadcrumb', product: product, collection: collection %}
+{% enddoc %}
+
+{%- liquid
+  assign product = product | default: empty
+  unless product != empty
+    break
+  endunless
+
+  assign collection = collection | default: empty
+-%}
+
+<ol class="pdp-breadcrumb__list">
+  <li class="pdp-breadcrumb__item">
+    <a href="/" class="pdp-breadcrumb__link">Home</a>
+  </li>
+  <li class="pdp-breadcrumb__item">
+    {%- if collection != empty -%}
+      <a href="{{ collection.url }}" class="pdp-breadcrumb__link">{{ collection.title }}</a>
+    {%- else -%}
+      <a href="/collections/all" class="pdp-breadcrumb__link">Shop All</a>
+    {%- endif -%}
+  </li>
+  <li class="pdp-breadcrumb__item pdp-breadcrumb__item--current" aria-current="page">
+    {{ product.title }}
+  </li>
+</ol>
+
+{% stylesheet %}
+  .pdp-breadcrumb__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-2xs);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--font-size--xs);
+    line-height: 1.4;
+  }
+
+  .pdp-breadcrumb__item {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2xs);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-50));
+  }
+
+  .pdp-breadcrumb__item:not(:last-child)::after {
+    content: '/';
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-30));
+  }
+
+  .pdp-breadcrumb__link {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-50));
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-foreground);
+      text-decoration: underline;
+    }
+  }
+
+  .pdp-breadcrumb__item--current {
+    color: var(--color-foreground);
+  }
+{% endstylesheet %}

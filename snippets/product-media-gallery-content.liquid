@@ -354,6 +354,9 @@
     data-presentation="{{ media_presentation }}"
     {{ block_shopify_attributes }}
   >
+    {% render 'product-badges-styles' %}
+    {% render 'pdp-product-badge', product: selected_product %}
+
     {% capture slides %}
       {% for media in sorted_media %}
         {% capture children %}
@@ -637,6 +640,8 @@
     {%- endif -%}
   </media-gallery>
 {% endif %}
+
+<script src="{{ 'pdp-gallery-enhancements.js' | asset_url }}" type="module"></script>
 
 {% render 'product-media-gallery-content-styles' %}
 
@@ -1047,5 +1052,9 @@
 
   slideshow-slide.product-media-container--tallest {
     content-visibility: visible;
+  }
+
+  media-gallery {
+    position: relative;
   }
 {% endstylesheet %}

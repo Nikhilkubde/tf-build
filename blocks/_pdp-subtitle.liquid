@@ -1,0 +1,45 @@
+{%- liquid
+  assign product = closest.product
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+  endif
+
+  assign subtitle_text = product.metafields.custom.subtitle.value
+  if subtitle_text == blank
+    assign subtitle_text = product.type
+  endif
+-%}
+
+{%- if subtitle_text != blank -%}
+  <p
+    class="pdp-subtitle"
+    {{ block.shopify_attributes }}
+  >
+    {{- subtitle_text -}}
+  </p>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-subtitle {
+    margin: 0;
+    font-size: var(--font-size--xs);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-50));
+    line-height: 1.4;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Subtitle tag",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "Subtitle tag"
+    }
+  ]
+}
+{% endschema %}

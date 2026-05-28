@@ -1,0 +1,210 @@
+{%- liquid
+  assign product = closest.product
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+  endif
+
+  assign lore = product.metafields.custom.lore
+  assign specs = product.metafields.custom.specs
+  assign care = product.metafields.custom.care_display
+
+  assign has_any = false
+  if lore.value != blank or specs.value != blank or care.value != blank
+    assign has_any = true
+  endif
+-%}
+
+{%- comment -%}
+  Render accordion-custom-component once to ensure its stylesheet is loaded.
+  Output is captured and discarded.
+{%- endcomment -%}
+{%- capture _void -%}
+  {%- render 'accordion-custom-component', children: '' -%}
+{%- endcapture -%}
+
+{%- if has_any -%}
+  <div
+    class="pdp-accordions"
+    data-pdp-accordion-persist
+    data-product-handle="{{ product.handle }}"
+    {{ block.shopify_attributes }}
+  >
+    {%- if lore.value != blank -%}
+      <accordion-custom id="pdp-accordion-lore" open-by-default-on-desktop>
+        <details class="details" open>
+          <summary class="details__header pdp-accordions__header">
+            {{ block.settings.lore_heading }}
+            <span class="svg-wrapper icon-caret icon-animated">
+              {{- 'icon-caret.svg' | inline_asset_content -}}
+            </span>
+          </summary>
+          <div class="details-content pdp-accordions__body">
+            <div class="rte">
+              {%- if lore.type == 'rich_text_field' -%}
+                {{ lore | metafield_tag }}
+              {%- elsif lore.type == 'multi_line_text_field' -%}
+                {{ lore.value | newline_to_br }}
+              {%- else -%}
+                {{ lore.value }}
+              {%- endif -%}
+            </div>
+          </div>
+        </details>
+      </accordion-custom>
+    {%- endif -%}
+
+    {%- if specs.value != blank -%}
+      <accordion-custom id="pdp-accordion-specs">
+        <details class="details">
+          <summary class="details__header pdp-accordions__header">
+            {{ block.settings.specs_heading }}
+            <span class="svg-wrapper icon-caret icon-animated">
+              {{- 'icon-caret.svg' | inline_asset_content -}}
+            </span>
+          </summary>
+          <div class="details-content pdp-accordions__body">
+            {%- if specs.type == 'json' -%}
+              <table class="pdp-accordions__specs-table">
+                <tbody>
+                  {%- for spec in specs.value -%}
+                    <tr>
+                      <th>{{ spec.label }}</th>
+                      <td>{{ spec.value }}</td>
+                    </tr>
+                  {%- endfor -%}
+                </tbody>
+              </table>
+            {%- elsif specs.type == 'rich_text_field' -%}
+              <div class="rte">{{ specs | metafield_tag }}</div>
+            {%- elsif specs.type == 'multi_line_text_field' -%}
+              <div class="rte">{{ specs.value | newline_to_br }}</div>
+            {%- else -%}
+              <div class="rte">{{ specs.value }}</div>
+            {%- endif -%}
+          </div>
+        </details>
+      </accordion-custom>
+    {%- endif -%}
+
+    {%- if care.value != blank -%}
+      <accordion-custom id="pdp-accordion-care">
+        <details class="details">
+          <summary class="details__header pdp-accordions__header">
+            {{ block.settings.care_heading }}
+            <span class="svg-wrapper icon-caret icon-animated">
+              {{- 'icon-caret.svg' | inline_asset_content -}}
+            </span>
+          </summary>
+          <div class="details-content pdp-accordions__body">
+            <div class="rte">
+              {%- if care.type == 'rich_text_field' -%}
+                {{ care | metafield_tag }}
+              {%- elsif care.type == 'multi_line_text_field' -%}
+                {{ care.value | newline_to_br }}
+              {%- else -%}
+                {{ care.value }}
+              {%- endif -%}
+            </div>
+          </div>
+        </details>
+      </accordion-custom>
+    {%- endif -%}
+  </div>
+
+  <script src="{{ 'pdp-accordion-persist.js' | asset_url }}" defer></script>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-accordions {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pdp-accordions accordion-custom + accordion-custom {
+    border-top: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-10));
+  }
+
+  .pdp-accordions__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: var(--padding-sm);
+    font-weight: 600;
+    font-size: var(--font-size--sm);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::marker {
+      display: none;
+      content: '';
+    }
+  }
+
+  .pdp-accordions__body {
+    padding-block-end: var(--padding-sm);
+    font-size: var(--font-size--sm);
+    line-height: 1.6;
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-80));
+  }
+
+  .pdp-accordions__specs-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: var(--padding-2xs) 0;
+      text-align: start;
+      font-size: var(--font-size--sm);
+      border-bottom: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-05));
+    }
+
+    th {
+      font-weight: 600;
+      width: 40%;
+      color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
+    }
+
+    td {
+      color: rgb(var(--color-foreground-rgb) / var(--opacity-80));
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "PDP Accordions",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "lore_heading",
+      "label": "First heading",
+      "default": "Lore"
+    },
+    {
+      "type": "text",
+      "id": "specs_heading",
+      "label": "Second heading",
+      "default": "Specs"
+    },
+    {
+      "type": "text",
+      "id": "care_heading",
+      "label": "Third heading",
+      "default": "Care & Display"
+    }
+  ],
+  "presets": [
+    {
+      "name": "PDP Accordions"
+    }
+  ]
+}
+{% endschema %}

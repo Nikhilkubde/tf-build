@@ -1,0 +1,85 @@
+{%- liquid
+  assign product = closest.product
+  assign variant = product.selected_or_first_available_variant
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+    assign variant = product.selected_or_first_available_variant
+  endif
+
+  assign weight_text = product.metafields.custom.scale.value
+  if weight_text == blank
+    assign first_variant_title = variant.title
+    if first_variant_title != 'Default Title' and first_variant_title != blank
+      assign weight_text = first_variant_title
+    endif
+  endif
+
+  assign has_price = false
+  if variant.price and variant.price > 0
+    assign has_price = true
+  endif
+-%}
+
+{%- if has_price -%}
+  <div
+    class="pdp-weight-price"
+    {{ block.shopify_attributes }}
+  >
+    {%- if weight_text != blank -%}
+      <span class="pdp-weight-price__weight">{{ weight_text }}</span>
+    {%- endif -%}
+
+    <div class="pdp-weight-price__price">
+      {%- if variant.compare_at_price > variant.price -%}
+        <s class="pdp-weight-price__compare">{{ variant.compare_at_price | money }}</s>
+      {%- endif -%}
+      <span class="pdp-weight-price__current">{{ variant.price | money }}</span>
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-weight-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--gap-sm);
+    flex-wrap: wrap;
+  }
+
+  .pdp-weight-price__weight {
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
+  }
+
+  .pdp-weight-price__price {
+    display: flex;
+    align-items: baseline;
+    gap: var(--gap-2xs);
+  }
+
+  .pdp-weight-price__current {
+    font-weight: 600;
+    font-size: var(--font-h4--size, 1.25rem);
+  }
+
+  .pdp-weight-price__compare {
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-50));
+    text-decoration: line-through;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Weight & Price",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "Weight & Price"
+    }
+  ]
+}
+{% endschema %}

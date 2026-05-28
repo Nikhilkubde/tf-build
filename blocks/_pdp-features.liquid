@@ -1,0 +1,63 @@
+{%- liquid
+  assign product = closest.product
+
+  if request.visual_preview_mode and product == blank
+    assign product = collections.all.products.first
+  endif
+
+  assign features = product.metafields.custom.features.value
+-%}
+
+{%- if features != blank and features.size > 0 -%}
+  <ul
+    class="pdp-features"
+    {{ block.shopify_attributes }}
+  >
+    {%- for feature in features -%}
+      <li class="pdp-features__item">
+        <svg class="pdp-features__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M13.354 4.354l-7 7a.5.5 0 01-.708 0l-3.5-3.5a.5.5 0 11.708-.708L6 10.293l6.646-6.647a.5.5 0 01.708.708z" fill="currentColor"/>
+        </svg>
+        <span>{{ feature }}</span>
+      </li>
+    {%- endfor -%}
+  </ul>
+{%- endif -%}
+
+{% stylesheet %}
+  .pdp-features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+  }
+
+  .pdp-features__item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-2xs);
+    font-size: var(--font-size--sm);
+    line-height: 1.5;
+  }
+
+  .pdp-features__icon {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+    color: var(--color-primary);
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Feature list",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "Feature list"
+    }
+  ]
+}
+{% endschema %}

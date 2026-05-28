@@ -1,0 +1,39 @@
+{%- render 'pdp-breadcrumb', product: product -%}
+
+{% schema %}
+{
+  "name": "PDP Breadcrumb",
+  "tag": "nav",
+  "class": "pdp-breadcrumb-section",
+  "settings": [
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Top padding",
+      "min": 0,
+      "max": 60,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 60,
+      "step": 4,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "presets": [
+    {
+      "name": "PDP Breadcrumb"
+    }
+  ]
+}
+{% endschema %}
