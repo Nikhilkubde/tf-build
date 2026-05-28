@@ -25,7 +25,9 @@
 
   assign variant = product.selected_or_first_available_variant
   assign loading_strategy = 'lazy'
-  if card_index <= columns_desktop
+  if lazy == false
+    assign loading_strategy = 'eager'
+  elsif card_index <= columns_desktop
     assign loading_strategy = 'eager'
   endif
 
@@ -34,26 +36,22 @@
   assign badge_text = ''
   assign badge_class = ''
   assign product_tags_downcase = product.tags | join: ',' | downcase | split: ','
-  for tag in product_tags_downcase
-    if badge_text == ''
-      if tag == 'founders-edition'
-        assign badge_text = "FOUNDER'S EDITION"
-        assign badge_class = 'cf-product-card__badge--founders'
-      elsif tag == 'exclusive'
-        assign badge_text = 'EXCLUSIVE'
-        assign badge_class = 'cf-product-card__badge--exclusive'
-      elsif tag == 'bestseller'
-        assign badge_text = 'BESTSELLER'
-        assign badge_class = 'cf-product-card__badge--bestseller'
-      elsif tag == 'new'
-        assign badge_text = 'NEW'
-        assign badge_class = 'cf-product-card__badge--new'
-      elsif tag == 'low-stock'
-        assign badge_text = 'LOW STOCK'
-        assign badge_class = 'cf-product-card__badge--low-stock'
-      endif
-    endif
-  endfor
+  if product_tags_downcase contains 'founders-edition'
+    assign badge_text = "FOUNDER'S EDITION"
+    assign badge_class = 'cf-product-card__badge--founders'
+  elsif product_tags_downcase contains 'exclusive'
+    assign badge_text = 'EXCLUSIVE'
+    assign badge_class = 'cf-product-card__badge--exclusive'
+  elsif product_tags_downcase contains 'bestseller'
+    assign badge_text = 'BESTSELLER'
+    assign badge_class = 'cf-product-card__badge--bestseller'
+  elsif product_tags_downcase contains 'new'
+    assign badge_text = 'NEW'
+    assign badge_class = 'cf-product-card__badge--new'
+  elsif product_tags_downcase contains 'low-stock'
+    assign badge_text = 'LOW STOCK'
+    assign badge_class = 'cf-product-card__badge--low-stock'
+  endif
 
   assign subtitle_text = product.metafields.custom.subtitle.value
   if subtitle_text == blank
