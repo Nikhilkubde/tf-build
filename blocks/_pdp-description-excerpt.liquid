@@ -12,8 +12,6 @@
   {%- liquid
     assign paragraphs = description | split: '</p>'
     assign first_paragraph = paragraphs[0] | append: '</p>'
-    # Strip any attributes from the opening <p> tag
-    assign first_paragraph = first_paragraph | replace: '<p ', '<p' | replace: '<p>', '<p>'
   -%}
 
   <div

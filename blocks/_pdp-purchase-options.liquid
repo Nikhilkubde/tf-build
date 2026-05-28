@@ -5,6 +5,9 @@
     assign product = collections.all.products.first
   endif
 
+  assign variant = product.selected_or_first_available_variant
+  assign regular_price = variant.price
+
   assign has_selling_plans = false
   if product.selling_plan_groups.size > 0
     assign has_selling_plans = true
@@ -12,9 +15,26 @@
 -%}
 
 {%- if has_selling_plans -%}
-  {%- capture selling_plan_json -%}
-    [{%- for group in product.selling_plan_groups -%}{"name":{{ group.name | json }},"plans":[{%- for plan in group.selling_plans -%}{"id":"{{ plan.id }}","name":{{ plan.name | json }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]
-  {%- endcapture -%}
+  {%- liquid
+    assign first_group = product.selling_plan_groups.first
+    assign first_plan = first_group.selling_plans.first
+
+    # Get subscribe price from selling plan allocations
+    assign subscribe_price = regular_price
+    for allocation in variant.selling_plan_allocations
+      if allocation.selling_plan.id == first_plan.id
+        assign subscribe_price = allocation.per_delivery_price
+        break
+      endif
+    endfor
+
+    assign has_discount = false
+    if subscribe_price < regular_price
+      assign has_discount = true
+    endif
+  -%}
+
+  {%- capture selling_plan_json -%}[{%- for group in product.selling_plan_groups -%}{"name":{{ group.name | json }},"plans":[{%- for plan in group.selling_plans -%}{"id":"{{ plan.id }}","name":{{ plan.name | json }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]{%- endcapture -%}
 
   <pdp-purchase-options
     class="pdp-purchase-options"
@@ -28,19 +48,32 @@
         class="pdp-purchase-options__option is-active"
         data-option-type="subscribe"
         on:click="/handleOptionSelect/subscribe"
-        aria-label="Subscribe & Save"
+        aria-label="{{ block.settings.subscribe_label }}"
       >
         <span class="pdp-purchase-options__radio-dot" role="radio" aria-checked="true"></span>
         <span class="pdp-purchase-options__option-label">
-          <span class="pdp-purchase-options__option-title">Subscribe & Save</span>
-          {%- if product.selling_plan_groups.first.selling_plans.first.price_adjustments.size > 0 -%}
-            <span class="pdp-purchase-options__option-savings">Save on every order</span>
+          <span class="pdp-purchase-options__option-title">{{ block.settings.subscribe_label }}</span>
+        </span>
+        <span class="pdp-purchase-options__option-price">
+          {%- if has_discount -%}
+            <span class="pdp-purchase-options__price-current">{{ subscribe_price | money }}</span>
+            <s class="pdp-purchase-options__price-compare">{{ regular_price | money }}</s>
+          {%- else -%}
+            <span class="pdp-purchase-options__price-current">{{ regular_price | money }}</span>
           {%- endif -%}
         </span>
       </button>
 
       <div class="pdp-purchase-options__subscribe-details is-visible">
-        {%- assign first_group = product.selling_plan_groups.first -%}
+        <div class="pdp-purchase-options__sub-lines">
+          {%- if block.settings.guarantee_text != blank -%}
+            <span class="pdp-purchase-options__sub-line">{{ block.settings.guarantee_text }}</span>
+          {%- endif -%}
+          {%- if block.settings.cancel_text != blank -%}
+            <span class="pdp-purchase-options__sub-line">{{ block.settings.cancel_text }}</span>
+          {%- endif -%}
+        </div>
+
         {%- if first_group.selling_plans.size > 1 -%}
           <div class="pdp-purchase-options__frequency is-visible" role="radiogroup" aria-label="Delivery frequency">
             {%- for plan in first_group.selling_plans -%}
@@ -66,17 +99,28 @@
         class="pdp-purchase-options__option"
         data-option-type="onetime"
         on:click="/handleOptionSelect/onetime"
-        aria-label="One-time purchase"
+        aria-label="{{ block.settings.onetime_label }}"
       >
         <span class="pdp-purchase-options__radio-dot" role="radio" aria-checked="false"></span>
         <span class="pdp-purchase-options__option-label">
-          <span class="pdp-purchase-options__option-title">One-time purchase</span>
+          <span class="pdp-purchase-options__option-title">{{ block.settings.onetime_label }}</span>
+        </span>
+        <span class="pdp-purchase-options__option-price">
+          <span class="pdp-purchase-options__price-current">{{ regular_price | money }}</span>
         </span>
       </button>
     </div>
   </pdp-purchase-options>
 
   <script src="{{ 'pdp-purchase-options.js' | asset_url }}" type="module"></script>
+{%- else -%}
+  <div
+    class="pdp-purchase-options pdp-purchase-options--simple"
+    {{ block.shopify_attributes }}
+  >
+    <span class="pdp-purchase-options__simple-label">{{ block.settings.onetime_label }}</span>
+    <span class="pdp-purchase-options__simple-price">{{ regular_price | money }}</span>
+  </div>
 {%- endif -%}
 
 {% stylesheet %}
@@ -109,6 +153,7 @@
     }
   }
 
+  .pdp-purchase-options__option + .pdp-purchase-options__subscribe-details + .pdp-purchase-options__option,
   .pdp-purchase-options__option + .pdp-purchase-options__option {
     border-top: 1px solid rgb(var(--color-foreground-rgb) / var(--opacity-10));
   }
@@ -155,9 +200,23 @@
     font-size: var(--font-size--sm);
   }
 
-  .pdp-purchase-options__option-savings {
+  .pdp-purchase-options__option-price {
+    display: flex;
+    align-items: baseline;
+    gap: var(--gap-2xs);
+    margin-inline-start: auto;
+    flex-shrink: 0;
+  }
+
+  .pdp-purchase-options__price-current {
+    font-weight: 600;
+    font-size: var(--font-size--sm);
+  }
+
+  .pdp-purchase-options__price-compare {
     font-size: var(--font-size--xs);
-    color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-50));
+    text-decoration: line-through;
   }
 
   .pdp-purchase-options__subscribe-details {
@@ -167,6 +226,19 @@
     &.is-visible {
       display: block;
     }
+  }
+
+  .pdp-purchase-options__sub-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--padding-xs) var(--padding-md) 0;
+    padding-inline-start: calc(var(--padding-md) + 18px + var(--gap-sm));
+  }
+
+  .pdp-purchase-options__sub-line {
+    font-size: var(--font-size--xs);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
   }
 
   .pdp-purchase-options__frequency {
@@ -208,13 +280,55 @@
       outline-offset: 2px;
     }
   }
+
+  .pdp-purchase-options--simple {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+  }
+
+  .pdp-purchase-options__simple-label {
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-60));
+  }
+
+  .pdp-purchase-options__simple-price {
+    font-weight: 600;
+    font-size: var(--font-h4--size, 1.25rem);
+  }
 {% endstylesheet %}
 
 {% schema %}
 {
   "name": "Purchase options",
   "tag": null,
-  "settings": [],
+  "settings": [
+    {
+      "type": "text",
+      "id": "subscribe_label",
+      "label": "Subscribe label",
+      "default": "Subscribe & Save 25%"
+    },
+    {
+      "type": "text",
+      "id": "onetime_label",
+      "label": "One-time label",
+      "default": "One-time Purchase"
+    },
+    {
+      "type": "text",
+      "id": "guarantee_text",
+      "label": "Guarantee text",
+      "default": "100% satisfied or your money back"
+    },
+    {
+      "type": "text",
+      "id": "cancel_text",
+      "label": "Cancel text",
+      "default": "Plans to cancel any time"
+    }
+  ],
   "presets": [
     {
       "name": "Purchase options"

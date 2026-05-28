@@ -6,11 +6,38 @@
   endif
 
   assign lore = product.metafields.custom.lore
-  assign specs = product.metafields.custom.specs
-  assign care = product.metafields.custom.care_display
+  assign care = product.metafields.custom.care_instructions
+
+  # Individual spec metafields
+  assign spec_scale = product.metafields.custom.scale.value
+  assign spec_height = product.metafields.custom.height.value
+  assign spec_materials = product.metafields.custom.materials.value
+  assign spec_articulation = product.metafields.custom.articulation_points.value
+  assign spec_accessories = product.metafields.custom.included_accessories
+
+  assign has_specs = false
+  if spec_scale != blank or spec_height != blank or spec_materials != blank or spec_articulation != blank
+    assign has_specs = true
+  endif
+  if spec_accessories.value != blank
+    assign has_specs = true
+  endif
+
+  # Lore fallback: if no lore metafield, use product description paragraphs after the first
+  assign has_lore = false
+  assign lore_fallback_content = ''
+
+  if lore.value != blank
+    assign has_lore = true
+  elsif product.description != blank
+    assign desc_parts = product.description | split: '</p>'
+    if desc_parts.size > 1
+      assign has_lore = true
+    endif
+  endif
 
   assign has_any = false
-  if lore.value != blank or specs.value != blank or care.value != blank
+  if has_lore or has_specs or care.value != blank
     assign has_any = true
   endif
 -%}
@@ -30,9 +57,9 @@
     data-product-handle="{{ product.handle }}"
     {{ block.shopify_attributes }}
   >
-    {%- if lore.value != blank -%}
-      <accordion-custom id="pdp-accordion-lore" open-by-default-on-desktop>
-        <details class="details" open>
+    {%- if has_lore -%}
+      <accordion-custom id="pdp-accordion-lore">
+        <details class="details">
           <summary class="details__header pdp-accordions__header">
             {{ block.settings.lore_heading }}
             <span class="svg-wrapper icon-caret icon-animated">
@@ -41,12 +68,22 @@
           </summary>
           <div class="details-content pdp-accordions__body">
             <div class="rte">
-              {%- if lore.type == 'rich_text_field' -%}
-                {{ lore | metafield_tag }}
-              {%- elsif lore.type == 'multi_line_text_field' -%}
-                {{ lore.value | newline_to_br }}
+              {%- if lore.value != blank -%}
+                {%- if lore.type == 'rich_text_field' -%}
+                  {{ lore | metafield_tag }}
+                {%- elsif lore.type == 'multi_line_text_field' -%}
+                  {{ lore.value | newline_to_br }}
+                {%- else -%}
+                  {{ lore.value }}
+                {%- endif -%}
               {%- else -%}
-                {{ lore.value }}
+                {%- for part in desc_parts -%}
+                  {%- if forloop.first -%}{%- continue -%}{%- endif -%}
+                  {%- assign trimmed_part = part | strip -%}
+                  {%- if trimmed_part != blank -%}
+                    {{ trimmed_part | append: '</p>' }}
+                  {%- endif -%}
+                {%- endfor -%}
               {%- endif -%}
             </div>
           </div>
@@ -54,9 +91,9 @@
       </accordion-custom>
     {%- endif -%}
 
-    {%- if specs.value != blank -%}
-      <accordion-custom id="pdp-accordion-specs">
-        <details class="details">
+    {%- if has_specs -%}
+      <accordion-custom id="pdp-accordion-specs" open-by-default-on-desktop>
+        <details class="details" open>
           <summary class="details__header pdp-accordions__header">
             {{ block.settings.specs_heading }}
             <span class="svg-wrapper icon-caret icon-animated">
@@ -64,24 +101,47 @@
             </span>
           </summary>
           <div class="details-content pdp-accordions__body">
-            {%- if specs.type == 'json' -%}
-              <table class="pdp-accordions__specs-table">
-                <tbody>
-                  {%- for spec in specs.value -%}
-                    <tr>
-                      <th>{{ spec.label }}</th>
-                      <td>{{ spec.value }}</td>
-                    </tr>
-                  {%- endfor -%}
-                </tbody>
-              </table>
-            {%- elsif specs.type == 'rich_text_field' -%}
-              <div class="rte">{{ specs | metafield_tag }}</div>
-            {%- elsif specs.type == 'multi_line_text_field' -%}
-              <div class="rte">{{ specs.value | newline_to_br }}</div>
-            {%- else -%}
-              <div class="rte">{{ specs.value }}</div>
-            {%- endif -%}
+            <table class="pdp-accordions__specs-table">
+              <tbody>
+                {%- if spec_scale != blank -%}
+                  <tr>
+                    <th>Scale</th>
+                    <td>{{ spec_scale }}</td>
+                  </tr>
+                {%- endif -%}
+                {%- if spec_height != blank -%}
+                  <tr>
+                    <th>Height</th>
+                    <td>{{ spec_height }}</td>
+                  </tr>
+                {%- endif -%}
+                {%- if spec_materials != blank -%}
+                  <tr>
+                    <th>Materials</th>
+                    <td>{{ spec_materials }}</td>
+                  </tr>
+                {%- endif -%}
+                {%- if spec_articulation != blank -%}
+                  <tr>
+                    <th>Articulation Points</th>
+                    <td>{{ spec_articulation }}</td>
+                  </tr>
+                {%- endif -%}
+                {%- if spec_accessories.value != blank -%}
+                  <tr>
+                    <th>Included Accessories</th>
+                    <td>
+                      {%- assign acc_type = spec_accessories.type -%}
+                      {%- if acc_type contains 'list' -%}
+                        {{ spec_accessories.value | join: ', ' }}
+                      {%- else -%}
+                        {{ spec_accessories.value }}
+                      {%- endif -%}
+                    </td>
+                  </tr>
+                {%- endif -%}
+              </tbody>
+            </table>
           </div>
         </details>
       </accordion-custom>
@@ -112,7 +172,7 @@
     {%- endif -%}
   </div>
 
-  <script src="{{ 'pdp-accordion-persist.js' | asset_url }}" defer></script>
+  <script src="{{ 'pdp-accordion-persist.js' | asset_url }}" type="module"></script>
 {%- endif -%}
 
 {% stylesheet %}
