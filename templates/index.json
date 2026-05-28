@@ -9,6 +9,19 @@
  */
  {
   "sections": {
+    "cf_hero_banner": {
+      "type": "cf-hero",
+      "settings": {
+        "image": "shopify://shop_images/video-bg-mobile-18492735.png",
+        "eyebrow_text": "ADVANCED WATER FILTRATION",
+        "heading": "Truly smart filtration technology at home and on-the-go",
+        "button_text": "Shop All Products",
+        "section_height": "large",
+        "text_color": "light",
+        "padding-block-start": 100,
+        "padding-block-end": 72
+      }
+    },
     "hero_jVaWmY": {
       "type": "hero",
       "blocks": {
@@ -282,6 +295,7 @@
     }
   },
   "order": [
+    "cf_hero_banner",
     "hero_jVaWmY",
     "product_list_fa6P9H"
   ]

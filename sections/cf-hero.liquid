@@ -1,0 +1,385 @@
+{% liquid
+  assign section_height = section.settings.section_height
+  assign text_color = section.settings.text_color
+  assign heading_level = section.settings.heading_level | default: 'h1'
+  assign has_image = false
+  assign has_mobile_image = false
+  assign has_video = false
+
+  if section.settings.image != blank
+    assign has_image = true
+  endif
+
+  if section.settings.image_mobile != blank
+    assign has_mobile_image = true
+  endif
+
+  if section.settings.video != blank
+    assign has_video = true
+  endif
+
+  assign fetch_priority = 'auto'
+  if section.index == 1
+    assign fetch_priority = 'high'
+  endif
+%}
+
+<div
+  id="CfHero-{{ section.id }}"
+  class="cf-hero cf-hero--text-{{ text_color }}"
+  style="
+    {% if section_height == 'full-screen' %}
+      --cf-hero-min-height: 100svh;
+    {% else %}
+      --cf-hero-min-height: var(--section-height-{{ section_height }});
+    {% endif %}
+    {% render 'spacing-style', settings: section.settings %}
+  "
+>
+  {%- comment -%} Background media layer {%- endcomment -%}
+  <div class="cf-hero__media">
+    {% if has_image %}
+      {% liquid
+        assign desktop_class = 'cf-hero__image'
+        if has_mobile_image
+          assign desktop_class = 'cf-hero__image cf-hero__image--desktop'
+        endif
+        assign sizes_val = '100vw'
+      %}
+      {{
+        section.settings.image
+        | image_url: width: section.settings.image.width
+        | image_tag:
+          sizes: sizes_val,
+          widths: '375,750,1100,1500,1920,2560,3840',
+          loading: 'eager',
+          fetchpriority: fetch_priority,
+          class: desktop_class,
+          alt: section.settings.image.alt
+      }}
+      {% if has_mobile_image %}
+        {{
+          section.settings.image_mobile
+          | image_url: width: section.settings.image_mobile.width
+          | image_tag:
+            sizes: sizes_val,
+            widths: '375,550,750,1100',
+            loading: 'eager',
+            fetchpriority: fetch_priority,
+            class: 'cf-hero__image cf-hero__image--mobile',
+            alt: section.settings.image_mobile.alt
+        }}
+      {% endif %}
+    {% elsif has_video == false %}
+      <div class="cf-hero__placeholder"></div>
+    {% endif %}
+
+    {% if has_video %}
+      <div class="cf-hero__video-wrapper">
+        <video-background-component>
+          <video
+            ref="videoElement"
+            autoplay
+            loop
+            muted
+            playsinline
+            class="cf-hero__video"
+          >
+            {% for source in section.settings.video.sources %}
+              <source
+                ref="videoSources[]"
+                data-video-source="{{ source.url }}"
+                type="{{ source.mime_type }}"
+              >
+            {% endfor %}
+          </video>
+        </video-background-component>
+      </div>
+    {% endif %}
+  </div>
+
+  {%- comment -%} Gradient overlay {%- endcomment -%}
+  <div class="cf-hero__overlay"></div>
+
+  {%- comment -%} Content layer {%- endcomment -%}
+  <div class="cf-hero__content spacing-style">
+    {% if section.settings.eyebrow_text != blank %}
+      <p class="cf-hero__eyebrow">{{ section.settings.eyebrow_text | escape }}</p>
+    {% endif %}
+
+    {% if section.settings.heading != blank %}
+      <{{ heading_level }} class="cf-hero__heading">{{ section.settings.heading | escape }}</{{ heading_level }}>
+    {% endif %}
+
+    {% if section.settings.button_text != blank and section.settings.button_url != blank %}
+      <a href="{{ section.settings.button_url }}" class="button cf-hero__button">
+        {{ section.settings.button_text | escape }}
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+{% stylesheet %}
+  .cf-hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: var(--cf-hero-min-height, var(--section-height-large));
+    overflow: hidden;
+  }
+
+  .cf-hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .cf-hero__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cf-hero__image--desktop {
+    @media screen and (max-width: 749px) {
+      display: none;
+    }
+  }
+
+  .cf-hero__image--mobile {
+    display: none;
+
+    @media screen and (max-width: 749px) {
+      display: block;
+    }
+  }
+
+  .cf-hero__placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: #797D86;
+  }
+
+  .cf-hero__video-wrapper {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cf-hero__video-wrapper {
+      display: none;
+    }
+  }
+
+  .cf-hero__video-wrapper video-background-component {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .cf-hero__video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cf-hero__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .cf-hero__content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+    max-width: 893px;
+    padding-inline: 90px;
+    box-sizing: border-box;
+
+    @media screen and (max-width: 749px) {
+      gap: 20px;
+      padding-inline: 18px;
+      max-width: 100%;
+    }
+  }
+
+  .cf-hero__eyebrow {
+    margin: 0;
+    font-family: var(--font-heading--family);
+    font-style: var(--font-heading--style);
+    font-weight: var(--font-heading--weight);
+    font-size: 18px;
+    line-height: 26px;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+
+    @media screen and (max-width: 749px) {
+      font-size: 13px;
+      line-height: 18px;
+      letter-spacing: 0.52px;
+    }
+  }
+
+  .cf-hero__heading {
+    margin: 0;
+    font-family: var(--font-heading--family);
+    font-style: var(--font-heading--style);
+    font-weight: var(--font-heading--weight);
+    font-size: clamp(32px, 5vw, 64px);
+    line-height: 1.2;
+    letter-spacing: -1.28px;
+
+    @media screen and (max-width: 749px) {
+      font-size: 32px;
+      line-height: 38px;
+      letter-spacing: -0.64px;
+    }
+  }
+
+  .cf-hero__button {
+    align-self: flex-start;
+  }
+
+  /* Text color variants */
+  .cf-hero--text-light .cf-hero__eyebrow,
+  .cf-hero--text-light .cf-hero__heading {
+    color: #FFFFFF;
+  }
+
+  .cf-hero--text-dark .cf-hero__eyebrow,
+  .cf-hero--text-dark .cf-hero__heading {
+    color: rgb(var(--color-foreground));
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Hero banner",
+  "tag": "section",
+  "class": "cf-hero-wrapper section-wrapper",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Media"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Background image"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile",
+      "label": "Mobile image"
+    },
+    {
+      "type": "video",
+      "id": "video",
+      "label": "Background video"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow_text",
+      "label": "Eyebrow",
+      "default": "ADVANCED WATER FILTRATION"
+    },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Truly smart filtration technology at home and on-the-go"
+    },
+    {
+      "type": "select",
+      "id": "heading_level",
+      "label": "Heading level",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" }
+      ],
+      "default": "h1"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button label",
+      "default": "Shop All Products"
+    },
+    {
+      "type": "url",
+      "id": "button_url",
+      "label": "Button link"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "section_height",
+      "label": "Section height",
+      "options": [
+        { "value": "small", "label": "Small" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "large", "label": "Large" },
+        { "value": "full-screen", "label": "Full screen" }
+      ],
+      "default": "large"
+    },
+    {
+      "type": "select",
+      "id": "text_color",
+      "label": "Text color",
+      "options": [
+        { "value": "light", "label": "Light" },
+        { "value": "dark", "label": "Dark" }
+      ],
+      "default": "light"
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Top padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 100,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 72,
+      "unit": "px"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Hero banner"
+    }
+  ]
+}
+{% endschema %}
