@@ -1,0 +1,170 @@
+{% doc %}
+  Custom Product Card
+
+  Renders a product card with image, badge, title, subtitle, price, scale line,
+  and an Add-to-Cart button that swaps to a quantity stepper.
+
+  @param {object} product - Product object (required)
+  @param {boolean} [lazy] - Lazy load image (default: true)
+  @param {number} [card_index] - Card position index for eager loading first row
+  @param {number} [columns_desktop] - Desktop column count for sizes attr (default: 4)
+
+  @example
+  {% render 'cf-product-card', product: product, lazy: true, card_index: 1, columns_desktop: 4 %}
+{% enddoc %}
+
+{% liquid
+  assign product = product | default: empty
+  unless product != empty
+    break
+  endunless
+
+  assign lazy = lazy | default: true
+  assign card_index = card_index | default: 999
+  assign columns_desktop = columns_desktop | default: 4
+
+  assign variant = product.selected_or_first_available_variant
+  assign loading_strategy = 'lazy'
+  if card_index <= columns_desktop
+    assign loading_strategy = 'eager'
+  endif
+
+  assign sizes_attr = '(min-width: 990px) 25vw, (min-width: 750px) 33vw, 50vw'
+
+  assign badge_text = ''
+  assign badge_class = ''
+  assign product_tags_downcase = product.tags | join: ',' | downcase | split: ','
+  for tag in product_tags_downcase
+    if badge_text == ''
+      if tag == 'founders-edition'
+        assign badge_text = "FOUNDER'S EDITION"
+        assign badge_class = 'cf-product-card__badge--founders'
+      elsif tag == 'exclusive'
+        assign badge_text = 'EXCLUSIVE'
+        assign badge_class = 'cf-product-card__badge--exclusive'
+      elsif tag == 'bestseller'
+        assign badge_text = 'BESTSELLER'
+        assign badge_class = 'cf-product-card__badge--bestseller'
+      elsif tag == 'new'
+        assign badge_text = 'NEW'
+        assign badge_class = 'cf-product-card__badge--new'
+      elsif tag == 'low-stock'
+        assign badge_text = 'LOW STOCK'
+        assign badge_class = 'cf-product-card__badge--low-stock'
+      endif
+    endif
+  endfor
+
+  assign subtitle_text = product.metafields.custom.subtitle.value
+  if subtitle_text == blank
+    assign subtitle_text = product.type
+  endif
+
+  assign scale_text = product.metafields.custom.scale.value
+  if scale_text == blank
+    assign first_variant_title = product.variants.first.title
+    if first_variant_title != 'Default Title'
+      assign scale_text = first_variant_title
+    endif
+  endif
+
+  assign has_sale = false
+  if product.compare_at_price > product.price
+    assign has_sale = true
+  endif
+%}
+
+<div class="cf-product-card">
+  <a href="{{ product.url }}" class="cf-product-card__link" aria-label="{{ product.title | escape }}">
+    <div class="cf-product-card__image-wrapper">
+      {% if product.featured_image != blank %}
+        {{
+          product.featured_image
+          | image_url: width: product.featured_image.width
+          | image_tag:
+            sizes: sizes_attr,
+            widths: '200,400,600,800',
+            loading: loading_strategy,
+            class: 'cf-product-card__image',
+            alt: product.featured_image.alt | default: product.title
+        }}
+      {% else %}
+        <div class="cf-product-card__image-placeholder">
+          {{ 'product-1' | placeholder_svg_tag: 'cf-product-card__placeholder-svg' }}
+        </div>
+      {% endif %}
+
+      {% if badge_text != '' %}
+        <span class="cf-product-card__badge {{ badge_class }}">{{ badge_text }}</span>
+      {% endif %}
+    </div>
+
+    <div class="cf-product-card__info">
+      <h3 class="cf-product-card__title">{{ product.title | escape }}</h3>
+
+      {% if subtitle_text != blank %}
+        <p class="cf-product-card__subtitle">{{ subtitle_text | escape }}</p>
+      {% endif %}
+
+      <div class="cf-product-card__price-row">
+        {% if has_sale %}
+          <s class="cf-product-card__compare-price">{{ product.compare_at_price | money }}</s>
+          <span class="cf-product-card__current-price cf-product-card__current-price--sale">{{ product.price | money }}</span>
+          <span class="cf-product-card__sale-tag">SALE</span>
+        {% else %}
+          <span class="cf-product-card__current-price">{{ product.price | money }}</span>
+        {% endif %}
+      </div>
+
+      {% if scale_text != blank %}
+        <p class="cf-product-card__scale">{{ scale_text | escape }}</p>
+      {% endif %}
+    </div>
+  </a>
+
+  {% if variant.available %}
+    <div class="cf-product-card__action">
+      <cf-product-card data-variant-id="{{ variant.id }}" data-product-id="{{ product.id }}">
+        <button
+          ref="addToCartBtn"
+          on:click="/handleAddToCart"
+          type="button"
+          class="cf-product-card__add-btn"
+          aria-label="Add {{ product.title | escape }} to cart"
+        >
+          Add to Cart
+        </button>
+        <div ref="stepperWrapper" class="cf-product-card__stepper" hidden>
+          <button
+            ref="decrementBtn"
+            on:click="/handleDecrement"
+            type="button"
+            class="cf-product-card__stepper-btn"
+            aria-label="Decrease quantity"
+          >
+            <span aria-hidden="true">&minus;</span>
+          </button>
+          <span ref="qtyDisplay" class="cf-product-card__stepper-qty" aria-live="polite" aria-label="Quantity">1</span>
+          <button
+            ref="incrementBtn"
+            on:click="/handleIncrement"
+            type="button"
+            class="cf-product-card__stepper-btn"
+            aria-label="Increase quantity"
+          >
+            <span aria-hidden="true">&plus;</span>
+          </button>
+        </div>
+        <div ref="loadingIndicator" class="cf-product-card__loading" hidden>
+          <span class="cf-product-card__spinner" aria-label="Loading"></span>
+        </div>
+      </cf-product-card>
+    </div>
+  {% else %}
+    <div class="cf-product-card__action">
+      <button type="button" class="cf-product-card__add-btn cf-product-card__add-btn--sold-out" disabled>
+        Sold Out
+      </button>
+    </div>
+  {% endif %}
+</div>

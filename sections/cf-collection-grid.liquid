@@ -1,0 +1,1179 @@
+{%- liquid
+  if collection != blank
+    assign target_collection = collection
+  elsif section.settings.collection != blank
+    assign target_collection = section.settings.collection
+  endif
+
+  assign products_per_page = section.settings.products_per_page | default: 24
+  assign default_sort = section.settings.default_sort | default: 'price-descending'
+
+  assign subheading_text = ''
+  if target_collection != blank and target_collection.description != blank
+    assign subheading_text = target_collection.description | strip_html | truncatewords: 30
+  endif
+  if subheading_text == blank
+    assign subheading_text = section.settings.subheading_fallback
+  endif
+-%}
+
+<div
+  id="CfCollectionGrid-{{ section.id }}"
+  class="cf-collection-grid color-{{ section.settings.color_scheme }}"
+  style="{% render 'spacing-style', settings: section.settings %}"
+>
+  <cf-collection-grid
+    data-section-id="{{ section.id }}"
+    data-default-sort="{{ default_sort }}"
+  >
+    <div class="cf-collection-grid__container page-width">
+      {%- comment -%} HEADER {%- endcomment -%}
+      {% if target_collection != blank %}
+        <div class="cf-collection-grid__header">
+          <h1 class="cf-collection-grid__title">{{ target_collection.title | escape }}</h1>
+          {% if subheading_text != blank %}
+            <p class="cf-collection-grid__subheading">{{ subheading_text }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {%- comment -%} FILTER PILL ROW + FILTER BY BUTTON {%- endcomment -%}
+      {% if section.blocks.size > 0 %}
+        <div class="cf-collection-grid__controls">
+          <div class="cf-collection-grid__pills-wrapper">
+            <div class="cf-collection-grid__pills">
+              {% for block in section.blocks %}
+                {% if block.type == 'filter_pill' %}
+                  {%- liquid
+                    assign is_active = false
+                    if block.settings.active_match == blank and target_collection != blank
+                      comment
+                        Blank active_match means "All" — active when URL has no filters
+                      endcomment
+                    elsif target_collection != blank and target_collection.handle == block.settings.active_match
+                      assign is_active = true
+                    endif
+                  -%}
+                  <a
+                    href="{{ block.settings.link | default: '#' }}"
+                    class="cf-collection-grid__pill{% if is_active %} cf-collection-grid__pill--active{% endif %}"
+                    {{ block.shopify_attributes }}
+                  >
+                    {{ block.settings.label | escape }}
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <div class="cf-collection-grid__pills-fade" aria-hidden="true"></div>
+          </div>
+          <button
+            ref="filterDrawerToggle"
+            on:click="/handleOpenDrawer"
+            type="button"
+            class="cf-collection-grid__filter-btn"
+            aria-controls="FilterDrawer-{{ section.id }}"
+            aria-expanded="false"
+          >
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            <span>Filter By</span>
+          </button>
+        </div>
+      {% endif %}
+
+      {%- comment -%} PRODUCT GRID {%- endcomment -%}
+      <div ref="gridWrapper" class="cf-collection-grid__grid-wrapper">
+        {% if target_collection != blank %}
+          {% paginate target_collection.products by products_per_page %}
+            {% if target_collection.products.size > 0 %}
+              <div ref="productGrid" class="cf-collection-grid__products">
+                {% for product in target_collection.products %}
+                  <div class="cf-collection-grid__item">
+                    {% render 'cf-product-card',
+                      product: product,
+                      lazy: true,
+                      card_index: forloop.index,
+                      columns_desktop: 4
+                    %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div ref="productGrid" class="cf-collection-grid__products">
+                <div class="cf-collection-grid__empty">
+                  <p>No products match these filters</p>
+                  <a href="{{ target_collection.url }}" class="cf-collection-grid__clear-link">Clear filters</a>
+                </div>
+              </div>
+            {% endif %}
+
+            {%- comment -%} LOAD MORE {%- endcomment -%}
+            <div ref="loadMoreWrapper" class="cf-collection-grid__load-more">
+              {% if paginate.pages > 1 and paginate.next %}
+                <button
+                  ref="loadMoreBtn"
+                  on:click="/handleLoadMore"
+                  type="button"
+                  class="cf-collection-grid__load-more-btn"
+                  data-next-url="{{ paginate.next.url }}"
+                >
+                  Load More
+                </button>
+              {% endif %}
+              <noscript>
+                {% render 'pagination-controls', paginate: paginate %}
+              </noscript>
+            </div>
+          {% endpaginate %}
+        {% else %}
+          <div ref="productGrid" class="cf-collection-grid__products">
+            <div class="cf-collection-grid__empty">
+              <p>No collection selected. Choose a collection in section settings.</p>
+            </div>
+          </div>
+          <div ref="loadMoreWrapper" class="cf-collection-grid__load-more"></div>
+        {% endif %}
+      </div>
+
+      {%- comment -%} SKELETON TEMPLATE {%- endcomment -%}
+      <template ref="skeletonTemplate">
+        <div class="cf-collection-grid__item cf-collection-grid__skeleton">
+          <div class="cf-product-card cf-product-card--skeleton">
+            <div class="cf-product-card__image-wrapper cf-skeleton__shimmer"></div>
+            <div class="cf-product-card__info">
+              <div class="cf-skeleton__line cf-skeleton__line--title cf-skeleton__shimmer"></div>
+              <div class="cf-skeleton__line cf-skeleton__line--subtitle cf-skeleton__shimmer"></div>
+              <div class="cf-skeleton__line cf-skeleton__line--price cf-skeleton__shimmer"></div>
+              <div class="cf-skeleton__line cf-skeleton__line--btn cf-skeleton__shimmer"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    {%- comment -%} FILTER DRAWER {%- endcomment -%}
+    <div ref="drawerOverlay" class="cf-collection-grid__overlay" on:click="/handleOverlayClick" aria-hidden="true"></div>
+    <aside
+      ref="filterDrawer"
+      id="FilterDrawer-{{ section.id }}"
+      class="cf-collection-grid__drawer"
+      role="dialog"
+      aria-label="Filters"
+      aria-hidden="true"
+    >
+      <div class="cf-collection-grid__drawer-header">
+        <h2 class="cf-collection-grid__drawer-title">Filters</h2>
+        <button
+          ref="drawerClose"
+          on:click="/handleCloseDrawer"
+          type="button"
+          class="cf-collection-grid__drawer-close"
+          aria-label="Close filters"
+        >
+          &times;
+        </button>
+      </div>
+      <form ref="filterForm" on:submit="/handleFilterSubmit" class="cf-collection-grid__drawer-form">
+        <div class="cf-collection-grid__drawer-body">
+          {%- comment -%} SORT {%- endcomment -%}
+          <fieldset class="cf-collection-grid__filter-group">
+            <legend class="cf-collection-grid__filter-legend">Sort by</legend>
+            <select ref="sortSelect" name="sort_by" class="cf-collection-grid__sort-select">
+              <option value="price-descending"{% if default_sort == 'price-descending' %} selected{% endif %}>Price: High to Low</option>
+              <option value="price-ascending"{% if default_sort == 'price-ascending' %} selected{% endif %}>Price: Low to High</option>
+              <option value="best-selling"{% if default_sort == 'best-selling' %} selected{% endif %}>Best Selling</option>
+              <option value="title-ascending"{% if default_sort == 'title-ascending' %} selected{% endif %}>Title: A-Z</option>
+              <option value="title-descending"{% if default_sort == 'title-descending' %} selected{% endif %}>Title: Z-A</option>
+              <option value="created-descending"{% if default_sort == 'created-descending' %} selected{% endif %}>Newest</option>
+            </select>
+          </fieldset>
+
+          {%- comment -%} STOREFRONT FILTERS {%- endcomment -%}
+          {% if target_collection != blank %}
+            {% for filter in target_collection.filters %}
+              <fieldset class="cf-collection-grid__filter-group">
+                <legend class="cf-collection-grid__filter-legend">{{ filter.label | escape }}</legend>
+                {% if filter.type == 'list' %}
+                  <div class="cf-collection-grid__filter-options">
+                    {% for value in filter.values %}
+                      <label class="cf-collection-grid__filter-checkbox">
+                        <input
+                          type="checkbox"
+                          name="{{ value.param_name }}"
+                          value="{{ value.value }}"
+                          {% if value.active %}checked{% endif %}
+                          {% if value.count == 0 and value.active == false %}disabled{% endif %}
+                        >
+                        <span>{{ value.label | escape }} ({{ value.count }})</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                {% elsif filter.type == 'price_range' %}
+                  <div class="cf-collection-grid__filter-price">
+                    <label class="cf-collection-grid__price-label">
+                      <span>Min</span>
+                      <input
+                        type="number"
+                        name="{{ filter.min_value.param_name }}"
+                        value="{{ filter.min_value.value }}"
+                        min="0"
+                        max="{{ filter.range_max | money_without_currency | strip }}"
+                        placeholder="0"
+                        class="cf-collection-grid__price-input"
+                      >
+                    </label>
+                    <span class="cf-collection-grid__price-separator">&ndash;</span>
+                    <label class="cf-collection-grid__price-label">
+                      <span>Max</span>
+                      <input
+                        type="number"
+                        name="{{ filter.max_value.param_name }}"
+                        value="{{ filter.max_value.value }}"
+                        min="0"
+                        max="{{ filter.range_max | money_without_currency | strip }}"
+                        placeholder="{{ filter.range_max | money_without_currency | strip }}"
+                        class="cf-collection-grid__price-input"
+                      >
+                    </label>
+                  </div>
+                {% endif %}
+              </fieldset>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div class="cf-collection-grid__drawer-footer">
+          <button type="submit" class="cf-collection-grid__apply-btn">Apply</button>
+          <button type="button" on:click="/handleClearFilters" class="cf-collection-grid__clear-btn">Clear All</button>
+        </div>
+      </form>
+    </aside>
+  </cf-collection-grid>
+</div>
+
+<script type="module" src="{{ 'cf-product-card.js' | asset_url }}"></script>
+<script type="module" src="{{ 'cf-collection-grid.js' | asset_url }}"></script>
+
+{% stylesheet %}
+/* ===================================================
+   CF COLLECTION GRID — Section Layout
+   =================================================== */
+
+.cf-collection-grid {
+  padding-block-start: var(--padding-block-start, 48px);
+  padding-block-end: var(--padding-block-end, 48px);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.cf-collection-grid__container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* --- Header --- */
+
+.cf-collection-grid__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cf-collection-grid__title {
+  font-family: var(--font-heading--family);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.2;
+  margin: 0;
+  color: var(--color-foreground-heading);
+}
+
+.cf-collection-grid__subheading {
+  font-family: var(--font-body--family);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--color-foreground);
+  opacity: 0.75;
+}
+
+/* --- Controls: Pills + Filter Button --- */
+
+.cf-collection-grid__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cf-collection-grid__pills-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cf-collection-grid__pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-block: 4px;
+  padding-inline-end: 32px;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.cf-collection-grid__pills-fade {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 48px;
+  background: linear-gradient(to right, transparent, var(--color-background));
+  pointer-events: none;
+}
+
+.cf-collection-grid__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+    border-color: var(--color-foreground);
+  }
+}
+
+.cf-collection-grid__pill--active {
+  background-color: var(--color-foreground);
+  color: var(--color-background);
+  border-color: var(--color-foreground);
+}
+
+.cf-collection-grid__filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+  }
+
+  .icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* --- Product Grid --- */
+
+.cf-collection-grid__products {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px 16px;
+
+  @media screen and (min-width: 750px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px 20px;
+  }
+
+  @media screen and (min-width: 990px) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px 24px;
+  }
+}
+
+/* --- Load More --- */
+
+.cf-collection-grid__load-more {
+  display: flex;
+  justify-content: center;
+  padding-block-start: 24px;
+}
+
+.cf-collection-grid__load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 40px;
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &[aria-busy="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+/* --- Empty State --- */
+
+.cf-collection-grid__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  text-align: center;
+  font-family: var(--font-body--family);
+  color: var(--color-foreground);
+  opacity: 0.7;
+}
+
+.cf-collection-grid__clear-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+/* ===================================================
+   CF PRODUCT CARD — Card Styles
+   =================================================== */
+
+.cf-product-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.cf-product-card__link {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
+}
+
+.cf-product-card__image-wrapper {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background-color: rgba(var(--color-foreground-rgb), 0.04);
+  border-radius: 4px;
+}
+
+.cf-product-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cf-product-card__image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cf-product-card__placeholder-svg {
+  width: 60%;
+  height: 60%;
+  opacity: 0.3;
+}
+
+/* --- Badge --- */
+
+.cf-product-card__badge {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  padding: 4px 10px;
+  font-family: var(--font-body--family);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  border-radius: 2px;
+  text-transform: uppercase;
+  z-index: 1;
+  color: #fff;
+  background-color: var(--color-foreground);
+}
+
+.cf-product-card__badge--founders {
+  background-color: #8B6F4E;
+}
+
+.cf-product-card__badge--exclusive {
+  background-color: #1a1a2e;
+}
+
+.cf-product-card__badge--bestseller {
+  background-color: #2d6a4f;
+}
+
+.cf-product-card__badge--new {
+  background-color: var(--color-primary);
+}
+
+.cf-product-card__badge--low-stock {
+  background-color: #c1121f;
+}
+
+/* --- Info --- */
+
+.cf-product-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-block-start: 10px;
+}
+
+.cf-product-card__title {
+  font-family: var(--font-heading--family);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  color: var(--color-foreground-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-product-card__subtitle {
+  font-family: var(--font-body--family);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--color-foreground);
+  opacity: 0.65;
+}
+
+.cf-product-card__scale {
+  font-family: var(--font-body--family);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--color-foreground);
+  opacity: 0.55;
+}
+
+/* --- Price --- */
+
+.cf-product-card__price-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cf-product-card__compare-price {
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-decoration: line-through;
+  color: var(--color-foreground);
+  opacity: 0.5;
+}
+
+.cf-product-card__current-price {
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-foreground);
+}
+
+.cf-product-card__current-price--sale {
+  color: #c1121f;
+}
+
+.cf-product-card__sale-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-family: var(--font-body--family);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  border-radius: 2px;
+  color: #fff;
+  background-color: #c1121f;
+}
+
+/* --- Action Area --- */
+
+.cf-product-card__action {
+  position: relative;
+  z-index: 1;
+  padding-block-start: 10px;
+  margin-block-start: auto;
+}
+
+cf-product-card {
+  display: block;
+  position: relative;
+}
+
+.cf-product-card__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.cf-product-card__add-btn--sold-out {
+  opacity: 0.5;
+  cursor: not-allowed;
+
+  &:hover {
+    background: transparent;
+    color: var(--color-foreground);
+  }
+}
+
+.cf-product-card__stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  overflow: hidden;
+}
+
+.cf-product-card__stepper[hidden] {
+  display: none;
+}
+
+.cf-product-card__stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(var(--color-foreground-rgb), 0.08);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.cf-product-card__stepper-qty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 40px;
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  user-select: none;
+}
+
+/* --- Loading Spinner --- */
+
+.cf-product-card__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--color-background-rgb), 0.7);
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  z-index: 2;
+}
+
+.cf-product-card__loading[hidden] {
+  display: none;
+}
+
+.cf-product-card__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(var(--color-foreground-rgb), 0.2);
+  border-top-color: var(--color-foreground);
+  border-radius: 50%;
+  animation: cf-spin 0.6s linear infinite;
+}
+
+@keyframes cf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================================================
+   FILTER DRAWER
+   =================================================== */
+
+.cf-collection-grid__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 99;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.cf-collection-grid__overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cf-collection-grid__drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cf-collection-grid__drawer.is-open {
+  transform: translateX(0);
+}
+
+.cf-collection-grid__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.cf-collection-grid__drawer-title {
+  font-family: var(--font-heading--family);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cf-collection-grid__drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--color-foreground);
+  font-size: 1.5rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(var(--color-foreground-rgb), 0.08);
+  }
+}
+
+.cf-collection-grid__drawer-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cf-collection-grid__drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cf-collection-grid__filter-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cf-collection-grid__filter-legend {
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-block-end: 10px;
+  display: block;
+  color: var(--color-foreground);
+}
+
+.cf-collection-grid__sort-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.cf-collection-grid__filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cf-collection-grid__filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body--family);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  color: var(--color-foreground);
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  input[disabled] + span {
+    opacity: 0.4;
+  }
+}
+
+.cf-collection-grid__filter-price {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cf-collection-grid__price-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-body--family);
+  font-size: 0.75rem;
+  color: var(--color-foreground);
+  flex: 1;
+}
+
+.cf-collection-grid__price-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+}
+
+.cf-collection-grid__price-separator {
+  padding-block-end: 10px;
+  color: var(--color-foreground);
+  opacity: 0.5;
+}
+
+.cf-collection-grid__drawer-footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.cf-collection-grid__apply-btn {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  background: var(--color-primary-button-background);
+  color: var(--color-primary-button-text);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: var(--color-primary-button-hover-background);
+    color: var(--color-primary-button-hover-text);
+  }
+}
+
+.cf-collection-grid__clear-btn {
+  flex: 1;
+  padding: 12px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-body--family);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-foreground);
+    color: var(--color-background);
+  }
+}
+
+/* ===================================================
+   SKELETONS
+   =================================================== */
+
+.cf-product-card--skeleton .cf-product-card__image-wrapper {
+  border-radius: 4px;
+}
+
+.cf-skeleton__shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--color-foreground-rgb), 0.06) 25%,
+    rgba(var(--color-foreground-rgb), 0.12) 50%,
+    rgba(var(--color-foreground-rgb), 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: cf-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes cf-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.cf-skeleton__line {
+  border-radius: 4px;
+}
+
+.cf-skeleton__line--title {
+  height: 16px;
+  width: 80%;
+}
+
+.cf-skeleton__line--subtitle {
+  height: 12px;
+  width: 50%;
+}
+
+.cf-skeleton__line--price {
+  height: 14px;
+  width: 30%;
+}
+
+.cf-skeleton__line--btn {
+  height: 40px;
+  width: 100%;
+  margin-block-start: 6px;
+  border-radius: var(--style-border-radius-buttons-primary, 100px);
+}
+
+/* ===================================================
+   RESPONSIVE
+   =================================================== */
+
+@media screen and (max-width: 749px) {
+  .cf-collection-grid__controls {
+    flex-wrap: nowrap;
+  }
+
+  .cf-collection-grid__drawer {
+    max-width: 100%;
+  }
+}
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Collection grid",
+  "tag": "section",
+  "class": "cf-collection-grid-wrapper",
+  "settings": [
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection"
+    },
+    {
+      "type": "text",
+      "id": "subheading_fallback",
+      "label": "Subheading fallback",
+      "default": "Browse our full collection"
+    },
+    {
+      "type": "number",
+      "id": "products_per_page",
+      "label": "Products per page",
+      "default": 24
+    },
+    {
+      "type": "select",
+      "id": "default_sort",
+      "label": "Default sort",
+      "options": [
+        { "value": "price-descending", "label": "Price: High to Low" },
+        { "value": "price-ascending", "label": "Price: Low to High" },
+        { "value": "best-selling", "label": "Best Selling" },
+        { "value": "title-ascending", "label": "Title: A-Z" },
+        { "value": "title-descending", "label": "Title: Z-A" },
+        { "value": "created-descending", "label": "Newest" }
+      ],
+      "default": "price-descending"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Top padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 48
+    }
+  ],
+  "blocks": [
+    {
+      "type": "filter_pill",
+      "name": "Filter pill",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Label",
+          "default": "All"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "Link"
+        },
+        {
+          "type": "text",
+          "id": "active_match",
+          "label": "Active match handle"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Collection grid",
+      "settings": {
+        "products_per_page": 24,
+        "default_sort": "price-descending"
+      },
+      "blocks": [
+        { "type": "filter_pill", "settings": { "label": "All", "active_match": "" } },
+        { "type": "filter_pill", "settings": { "label": "Founder's Series", "active_match": "founders-series" } },
+        { "type": "filter_pill", "settings": { "label": "Heroes", "active_match": "heroes" } },
+        { "type": "filter_pill", "settings": { "label": "Villains", "active_match": "villains" } },
+        { "type": "filter_pill", "settings": { "label": "Sidekicks", "active_match": "sidekicks" } },
+        { "type": "filter_pill", "settings": { "label": "Sentinel Bureau", "active_match": "sentinel-bureau" } },
+        { "type": "filter_pill", "settings": { "label": "Mythic Tier", "active_match": "mythic-tier" } },
+        { "type": "filter_pill", "settings": { "label": "Accessories", "active_match": "accessories" } }
+      ]
+    }
+  ]
+}
+{% endschema %}
