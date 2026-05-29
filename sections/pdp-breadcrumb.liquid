@@ -1,10 +1,12 @@
 {%- render 'spacing-style', settings: section.settings -%}
-{%- render 'pdp-breadcrumb', product: product -%}
+   <nav aria-label="Breadcrumb">
+     {%- render 'pdp-breadcrumb', product: product -%}
+   </nav>
 
 {% schema %}
 {
   "name": "PDP Breadcrumb",
-  "tag": "nav",
+  "tag": "section",
   "class": "pdp-breadcrumb-section",
   "settings": [
     {
