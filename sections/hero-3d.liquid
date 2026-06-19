@@ -1,0 +1,371 @@
+{%- comment -%}
+  hero-3d.liquid
+  Cinematic 3D hero section using Google's <model-viewer> web component.
+
+  IMPORTANT: The default model_url setting uses a CC0 placeholder model
+  (Astronaut.glb from modelviewer.dev). Replace section.settings.model_url
+  with a real branded .glb URL — ideally Draco-compressed and under 2 MB —
+  before going live.
+{%- endcomment -%}
+
+{%- assign button_href = section.settings.button_url | default: '#' -%}
+
+<div
+  id="Hero3D-{{ section.id }}"
+  class="hero-3d color-{{ section.settings.color_scheme }} spacing-style"
+  style="
+    {% render 'spacing-style', settings: section.settings %}
+  "
+>
+  {%- comment -%} Particle canvas background — animated by motion-accents.js {%- endcomment -%}
+  <canvas
+    class="hero-3d__particles-canvas"
+    data-particles
+    aria-hidden="true"
+  ></canvas>
+
+  {%- comment -%} Radial glow ring positioned behind the model viewer {%- endcomment -%}
+  <div class="hero-3d__glow-ring" aria-hidden="true"></div>
+
+  <div class="hero-3d__layout">
+
+    {%- comment -%} Content column — enters with slide-up reveal on scroll {%- endcomment -%}
+    <div class="hero-3d__content" data-reveal="slide-up">
+      {%- if section.settings.eyebrow != blank -%}
+        <p class="hero-3d__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+      {%- endif -%}
+
+      {%- if section.settings.heading != blank -%}
+        <h1 class="hero-3d__heading">{{ section.settings.heading | escape }}</h1>
+      {%- endif -%}
+
+      {%- if section.settings.subheading != blank -%}
+        <p class="hero-3d__subheading">{{ section.settings.subheading | escape }}</p>
+      {%- endif -%}
+
+      {%- if section.settings.button_text != blank -%}
+        <a href="{{ button_href }}" class="button hero-3d__cta">
+          {{- section.settings.button_text | escape -}}
+        </a>
+      {%- endif -%}
+    </div>
+
+    {%- comment -%} Model viewer column {%- endcomment -%}
+    <div class="hero-3d__viewer-wrap">
+      <div class="hero-3d__pedestal" aria-hidden="true"></div>
+
+      <model-viewer
+        src="{{ section.settings.model_url }}"
+        {%- if section.settings.poster_image != blank -%}
+          poster="{{ section.settings.poster_image | image_url: width: 800 }}"
+        {%- endif -%}
+        alt="{{ section.settings.model_alt | escape }}"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        shadow-softness="0.8"
+        environment-image="neutral"
+        exposure="1.2"
+        loading="lazy"
+        reveal="interaction"
+        class="hero-3d__model-viewer"
+      >
+        <div class="hero-3d__progress-bar" slot="progress-bar">
+          <div class="hero-3d__progress-bar-inner"></div>
+        </div>
+      </model-viewer>
+    </div>
+
+  </div>
+</div>
+
+{%- comment -%} Load Google model-viewer CDN script (ES module — browser deduplicates by URL) {%- endcomment -%}
+{% # theme-check-disable RemoteAsset %}
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+{% # theme-check-enable RemoteAsset %}
+
+{%- comment -%} Per-section manager for tilt, load state, and reduced-motion guard {%- endcomment -%}
+<script type="module" src="{{ 'model-viewer-manager.js' | asset_url }}"></script>
+
+{% stylesheet %}
+  .hero-3d {
+    position: relative;
+    overflow: hidden;
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Particle canvas — fills the entire section background */
+  .hero-3d__particles-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    display: block;
+  }
+
+  /* Radial glow behind the model viewer */
+  .hero-3d__glow-ring {
+    position: absolute;
+    right: 8%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 55vmin;
+    height: 55vmin;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--color-primary), 0.22) 0%, transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+    filter: blur(48px);
+  }
+
+  /* Two-column layout — stacks on mobile */
+  .hero-3d__layout {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 24px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    padding-block: 60px;
+
+    @media screen and (min-width: 750px) {
+      flex-direction: row;
+      align-items: center;
+      gap: 64px;
+      padding-block: 80px;
+    }
+  }
+
+  /* Content column */
+  .hero-3d__content {
+    flex: 1 1 45%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+
+    &.is-revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-3d__content {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+
+  .hero-3d__eyebrow {
+    margin: 0;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    color: rgb(var(--color-foreground));
+    font-family: var(--font-body--family);
+  }
+
+  .hero-3d__heading {
+    margin: 0;
+    font-size: clamp(2.5rem, 7vw, 6rem);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    font-family: var(--font-heading--family);
+    font-style: var(--font-heading--style);
+    font-weight: var(--font-heading--weight);
+    color: rgb(var(--color-foreground-heading, var(--color-foreground)));
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .hero-3d__subheading {
+    margin: 0;
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: rgb(var(--color-foreground));
+    opacity: 0.8;
+    max-width: 42ch;
+    line-height: 1.6;
+  }
+
+  .hero-3d__cta {
+    align-self: flex-start;
+  }
+
+  /* Model viewer column */
+  .hero-3d__viewer-wrap {
+    flex: 1 1 55%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Radial ellipse shadow beneath the model, simulating a pedestal */
+  .hero-3d__pedestal {
+    position: absolute;
+    bottom: 4%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 55%;
+    height: 32px;
+    z-index: 0;
+    pointer-events: none;
+
+    &::after {
+      content: '';
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, transparent 70%);
+      filter: blur(10px);
+    }
+  }
+
+  .hero-3d__model-viewer {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    max-height: 70vh;
+    display: block;
+    background: transparent;
+    transition: opacity 0.5s ease;
+
+    &.model-viewer--error {
+      opacity: 0.3;
+    }
+
+    @media screen and (max-width: 749px) {
+      aspect-ratio: 3 / 4;
+      max-height: 55vh;
+    }
+  }
+
+  /* Custom progress bar in the model-viewer slot */
+  .hero-3d__progress-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+  }
+
+  .hero-3d__progress-bar-inner {
+    height: 100%;
+    background: rgb(var(--color-primary));
+    animation: hero3d-progress-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes hero3d-progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "3D Hero",
+  "settings": [
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow text",
+      "default": "SUPERHERO COLLECTION"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Bring the Heroes Home"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Poseable. Collectible. Legendary."
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Shop Now"
+    },
+    {
+      "type": "url",
+      "id": "button_url",
+      "label": "Button link"
+    },
+    {
+      "type": "header",
+      "content": "3D Model"
+    },
+    {
+      "type": "text",
+      "id": "model_url",
+      "label": "Model URL (.glb)",
+      "default": "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+      "info": "Placeholder CC0 model — replace with real branded .glb URL"
+    },
+    {
+      "type": "image_picker",
+      "id": "poster_image",
+      "label": "Poster image"
+    },
+    {
+      "type": "text",
+      "id": "model_alt",
+      "label": "Model alt text",
+      "default": "Interactive 3D superhero figure"
+    },
+    {
+      "type": "header",
+      "content": "Section"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-5"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Padding top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Padding bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "3D Hero"
+    }
+  ]
+}
+{% endschema %}

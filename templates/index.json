@@ -9,6 +9,20 @@
  */
  {
   "sections": {
+    "hero_3d": {
+      "type": "hero-3d",
+      "settings": {
+        "heading": "Bring the Heroes Home",
+        "eyebrow": "SUPERHERO COLLECTION",
+        "subheading": "Poseable. Collectible. Legendary.",
+        "button_text": "Shop Now",
+        "model_url": "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+        "model_alt": "Interactive 3D superhero figure",
+        "color_scheme": "scheme-5",
+        "padding-block-start": 0,
+        "padding-block-end": 0
+      }
+    },
     "cf_hero_banner": {
       "type": "cf-hero",
       "settings": {
@@ -292,11 +306,33 @@
         "padding-block-start": 48,
         "padding-block-end": 48
       }
+    },
+    "featured_figures_3d": {
+      "type": "featured-figures-3d",
+      "settings": {
+        "heading": "Featured Action Figures",
+        "subheading": "Rotate. Zoom. Bring them home.",
+        "collection": "all",
+        "max_products": 4,
+        "model_url_1": "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+        "model_url_2": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/RobotExpressive/glTF-Binary/RobotExpressive.glb",
+        "model_url_3": "",
+        "model_url_4": "",
+        "model_url_5": "",
+        "model_url_6": "",
+        "model_url_7": "",
+        "model_url_8": "",
+        "color_scheme": "scheme-2",
+        "padding-block-start": 48,
+        "padding-block-end": 48
+      }
     }
   },
   "order": [
+    "hero_3d",
     "cf_hero_banner",
     "hero_jVaWmY",
-    "product_list_fa6P9H"
+    "product_list_fa6P9H",
+    "featured_figures_3d"
   ]
 }
